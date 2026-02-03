@@ -32,7 +32,6 @@ spec:
               NAMESPACE="{{ .Release.Namespace }}"
 
               echo "Waiting for REC $REC_NAME to be Running with version $EXPECTED_VERSION..."
-              echo "This job checks ACTUAL pod images, not just spec - generalizable to any upgrade."
 
               # Give operator time to start processing the spec change
               echo "Initial wait (15s) to allow operator to detect spec changes..."
