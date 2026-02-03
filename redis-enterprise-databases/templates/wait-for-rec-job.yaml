@@ -1,4 +1,5 @@
 {{- $recname := index .Values "redis-enterprise-cluster" "recname" }}
+{{- $expectedVersion := index .Values "redis-enterprise-cluster" "versionTag" }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -22,26 +23,33 @@ spec:
             - -c
             - |
               #!/bin/bash
-              
+
               # Handle SIGTERM gracefully
               trap "echo 'Received SIGTERM, exiting'; exit 0" SIGTERM SIGINT
-              
+
               REC_NAME="{{ $recname }}"
-              echo "Waiting for REC $REC_NAME to be in Running state..."
-              
+              EXPECTED_VERSION="{{ $expectedVersion }}"
+
+              echo "Waiting for REC $REC_NAME to be Running with version $EXPECTED_VERSION..."
+
+              # Give operator time to start processing the spec change
+              echo "Initial wait (15s) to allow operator to detect spec changes..."
+              sleep 15
+
               while true; do
                 STATE=$(kubectl get rec "$REC_NAME" -n {{ .Release.Namespace }} -o jsonpath='{.status.state}' 2>/dev/null)
                 SPEC_STATUS=$(kubectl get rec "$REC_NAME" -n {{ .Release.Namespace }} -o jsonpath='{.status.specStatus}' 2>/dev/null)
-                
-                echo "$(date): REC state: $STATE, specStatus: $SPEC_STATUS"
-                
-                if [[ "$STATE" == "Running" && "$SPEC_STATUS" == "Valid" ]]; then
-                  echo "REC is ready! Proceeding with database deployments..."
+                CURRENT_VERSION=$(kubectl get rec "$REC_NAME" -n {{ .Release.Namespace }} -o jsonpath='{.status.version}' 2>/dev/null)
+
+                echo "$(date): REC state: $STATE, specStatus: $SPEC_STATUS, version: $CURRENT_VERSION (expected: $EXPECTED_VERSION)"
+
+                # Check that REC is Running, Valid, AND has the expected version
+                if [[ "$STATE" == "Running" && "$SPEC_STATUS" == "Valid" && "$CURRENT_VERSION" == "$EXPECTED_VERSION" ]]; then
+                  echo "REC is ready with correct version! Proceeding with database deployments..."
                   exit 0
                 fi
-                
+
                 echo "REC not ready yet, waiting 30 seconds..."
-                # Use sleep in background + wait to allow signal handling
                 sleep 30 &
                 wait $!
               done
