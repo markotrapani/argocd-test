@@ -13,7 +13,7 @@ spec:
   activeDeadlineSeconds: 1800
   template:
     spec:
-      serviceAccountName: admission-sa
+      serviceAccountName: wait-for-rec-sa
       restartPolicy: Never
       containers:
         - name: wait-for-rec
@@ -42,16 +42,16 @@ spec:
                 SPEC_STATUS=$(kubectl get rec "$REC_NAME" -n "$NAMESPACE" -o jsonpath='{.status.specStatus}' 2>/dev/null)
 
                 # Get actual pod images - this is the source of truth for upgrade completion
-                # Pods are labeled with redis.io/cluster=<rec-name>
-                POD_COUNT=$(kubectl get pods -n "$NAMESPACE" -l "redis.io/cluster=$REC_NAME" --no-headers 2>/dev/null | wc -l | tr -d ' ')
+                # Only check node pods (redis.io/role=node), not services-rigger
+                POD_COUNT=$(kubectl get pods -n "$NAMESPACE" -l "redis.io/cluster=$REC_NAME,redis.io/role=node" --no-headers 2>/dev/null | wc -l | tr -d ' ')
 
-                # Get unique image versions from all REC pods (redis-enterprise-node container)
-                POD_VERSIONS=$(kubectl get pods -n "$NAMESPACE" -l "redis.io/cluster=$REC_NAME" \
+                # Get unique image versions from REC node pods
+                POD_VERSIONS=$(kubectl get pods -n "$NAMESPACE" -l "redis.io/cluster=$REC_NAME,redis.io/role=node" \
                   -o jsonpath='{range .items[*]}{.spec.containers[?(@.name=="redis-enterprise-node")].image}{"\n"}{end}' 2>/dev/null | \
                   grep -oE '[0-9]+\.[0-9]+\.[0-9]+-[0-9]+' | sort -u)
 
-                # Count how many pods have the expected version
-                PODS_WITH_EXPECTED=$(kubectl get pods -n "$NAMESPACE" -l "redis.io/cluster=$REC_NAME" \
+                # Count how many node pods have the expected version
+                PODS_WITH_EXPECTED=$(kubectl get pods -n "$NAMESPACE" -l "redis.io/cluster=$REC_NAME,redis.io/role=node" \
                   -o jsonpath='{range .items[*]}{.spec.containers[?(@.name=="redis-enterprise-node")].image}{"\n"}{end}' 2>/dev/null | \
                   grep -c "$EXPECTED_VERSION" || echo "0")
 
