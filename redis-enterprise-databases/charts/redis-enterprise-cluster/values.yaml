@@ -30,8 +30,8 @@ limits:
 
 enablePersistence: true
 volumeSize: "20Gi"
-nodeSelector: 
-  workload-category: core
+nodeSelector: {}
+# Commented out:  workload-category: core
 
 # Certificate management configuration
 certificate:

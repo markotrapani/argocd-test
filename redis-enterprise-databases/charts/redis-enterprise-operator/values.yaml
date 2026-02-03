@@ -1,34 +1,7 @@
 operatorImageSpec: redislabs/operator
 versionTag: 7.22.2-22
 
-affinity: |
-  nodeAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: workload-category
-          operator: In
-          values:
-          - system
-  podAntiAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-    - weight: 100
-      podAffinityTerm:
-        labelSelector:
-          matchExpressions:
-          - key: name
-            operator: In
-            values:
-            - redis-enterprise-operator
-        topologyKey: topology.kubernetes.io/zone
-    - weight: 50
-      podAffinityTerm:
-        labelSelector:
-          matchExpressions:
-          - key: app
-            operator: In
-            values:
-            - redis-enterprise-operator
-        topologyKey: kubernetes.io/hostname
+affinity: ""
+
 nodeSelector: {}
 tolerations: []
