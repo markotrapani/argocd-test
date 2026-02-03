@@ -46,14 +46,14 @@ spec:
                 # Pods are labeled with redis.io/cluster=<rec-name>
                 POD_COUNT=$(kubectl get pods -n "$NAMESPACE" -l "redis.io/cluster=$REC_NAME" --no-headers 2>/dev/null | wc -l | tr -d ' ')
 
-                # Get unique image versions from all REC pods (redis-enterprise container)
+                # Get unique image versions from all REC pods (redis-enterprise-node container)
                 POD_VERSIONS=$(kubectl get pods -n "$NAMESPACE" -l "redis.io/cluster=$REC_NAME" \
-                  -o jsonpath='{range .items[*]}{.spec.containers[?(@.name=="redis-enterprise")].image}{"\n"}{end}' 2>/dev/null | \
+                  -o jsonpath='{range .items[*]}{.spec.containers[?(@.name=="redis-enterprise-node")].image}{"\n"}{end}' 2>/dev/null | \
                   grep -oE '[0-9]+\.[0-9]+\.[0-9]+-[0-9]+' | sort -u)
 
                 # Count how many pods have the expected version
                 PODS_WITH_EXPECTED=$(kubectl get pods -n "$NAMESPACE" -l "redis.io/cluster=$REC_NAME" \
-                  -o jsonpath='{range .items[*]}{.spec.containers[?(@.name=="redis-enterprise")].image}{"\n"}{end}' 2>/dev/null | \
+                  -o jsonpath='{range .items[*]}{.spec.containers[?(@.name=="redis-enterprise-node")].image}{"\n"}{end}' 2>/dev/null | \
                   grep -c "$EXPECTED_VERSION" || echo "0")
 
                 echo "$(date): REC state: $STATE, specStatus: $SPEC_STATUS"
