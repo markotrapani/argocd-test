@@ -7,6 +7,9 @@ metadata:
     argocd.argoproj.io/sync-wave: "20"
 spec:
   databaseSecretName: redis-secret-{{ .Values.name }}
+  {{- if .Values.redisVersion }}
+  redisVersion: "{{ .Values.redisVersion }}"
+  {{- end }}
   memorySize: {{ .Values.memorySize }}
   databasePort: {{ .Values.databasePort }}
   shardCount: {{ .Values.shardCount }}

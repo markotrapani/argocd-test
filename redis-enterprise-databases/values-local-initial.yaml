@@ -8,14 +8,14 @@ global:
     repoUrl: bitnami
 
 redis-enterprise-operator:
-  versionTag: "7.22.2-22"
+  versionTag: "7.4.2-12"
   affinity: ""  # Disable node affinity for local testing
 
 redis-enterprise-cluster:
   recname: test-redis
   nodes: 3
   licenseSecretName: ""
-  versionTag: "7.22.2-20"
+  versionTag: "7.4.2-169"
   redisEnterpriseImageSpec: redislabs/redis
   redisEnterpriseServicesRiggerImageSpec: redislabs/k8s-controller
   bootstrapperImageSpec: redislabs/operator
@@ -32,6 +32,7 @@ redis-enterprise-cluster:
 redis-replicated:
   enabled: true
   name: redis-replicated
+  redisVersion: "7.2"
   memorySize: 100MB
   databasePort: 13001
   shardCount: 1

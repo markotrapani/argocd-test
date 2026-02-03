@@ -1,5 +1,5 @@
 # Values for LOCAL TESTING - Upgrade deployment
-# Same operator/REC versions, but REDB changes to trigger the upgrade scenario
+# Major version upgrade: 7.4.2 -> 7.22.2 (operator + REC + REDB)
 global:
   enableExternalSecrets: false
   enableCertManager: false
@@ -32,7 +32,8 @@ redis-enterprise-cluster:
 redis-replicated:
   enabled: true
   name: redis-replicated
-  memorySize: 200MB  # CHANGED - triggers REDB update
+  redisVersion: "7.4"
+  memorySize: 100MB
   databasePort: 13001
   shardCount: 1
   replication: true
