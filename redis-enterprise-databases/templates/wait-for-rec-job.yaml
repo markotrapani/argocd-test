@@ -29,23 +29,44 @@ spec:
 
               REC_NAME="{{ $recname }}"
               EXPECTED_VERSION="{{ $expectedVersion }}"
+              NAMESPACE="{{ .Release.Namespace }}"
 
               echo "Waiting for REC $REC_NAME to be Running with version $EXPECTED_VERSION..."
+              echo "This job checks ACTUAL pod images, not just spec - generalizable to any upgrade."
 
               # Give operator time to start processing the spec change
               echo "Initial wait (15s) to allow operator to detect spec changes..."
               sleep 15
 
               while true; do
-                STATE=$(kubectl get rec "$REC_NAME" -n {{ .Release.Namespace }} -o jsonpath='{.status.state}' 2>/dev/null)
-                SPEC_STATUS=$(kubectl get rec "$REC_NAME" -n {{ .Release.Namespace }} -o jsonpath='{.status.specStatus}' 2>/dev/null)
-                CURRENT_VERSION=$(kubectl get rec "$REC_NAME" -n {{ .Release.Namespace }} -o jsonpath='{.spec.redisEnterpriseImageSpec.versionTag}' 2>/dev/null)
+                STATE=$(kubectl get rec "$REC_NAME" -n "$NAMESPACE" -o jsonpath='{.status.state}' 2>/dev/null)
+                SPEC_STATUS=$(kubectl get rec "$REC_NAME" -n "$NAMESPACE" -o jsonpath='{.status.specStatus}' 2>/dev/null)
 
-                echo "$(date): REC state: $STATE, specStatus: $SPEC_STATUS, version: $CURRENT_VERSION (expected: $EXPECTED_VERSION)"
+                # Get actual pod images - this is the source of truth for upgrade completion
+                # Pods are labeled with redis.io/cluster=<rec-name>
+                POD_COUNT=$(kubectl get pods -n "$NAMESPACE" -l "redis.io/cluster=$REC_NAME" --no-headers 2>/dev/null | wc -l | tr -d ' ')
 
-                # Check that REC is Running, Valid, AND has the expected version in spec
-                if [[ "$STATE" == "Running" && "$SPEC_STATUS" == "Valid" && "$CURRENT_VERSION" == "$EXPECTED_VERSION" ]]; then
-                  echo "REC is ready with correct version! Proceeding with database deployments..."
+                # Get unique image versions from all REC pods (redis-enterprise container)
+                POD_VERSIONS=$(kubectl get pods -n "$NAMESPACE" -l "redis.io/cluster=$REC_NAME" \
+                  -o jsonpath='{range .items[*]}{.spec.containers[?(@.name=="redis-enterprise")].image}{"\n"}{end}' 2>/dev/null | \
+                  grep -oE '[0-9]+\.[0-9]+\.[0-9]+-[0-9]+' | sort -u)
+
+                # Count how many pods have the expected version
+                PODS_WITH_EXPECTED=$(kubectl get pods -n "$NAMESPACE" -l "redis.io/cluster=$REC_NAME" \
+                  -o jsonpath='{range .items[*]}{.spec.containers[?(@.name=="redis-enterprise")].image}{"\n"}{end}' 2>/dev/null | \
+                  grep -c "$EXPECTED_VERSION" || echo "0")
+
+                echo "$(date): REC state: $STATE, specStatus: $SPEC_STATUS"
+                echo "  Pods: $POD_COUNT total, $PODS_WITH_EXPECTED with expected version $EXPECTED_VERSION"
+                echo "  Pod versions found: $(echo $POD_VERSIONS | tr '\n' ' ')"
+
+                # Check ALL conditions:
+                # 1. REC is Running
+                # 2. specStatus is Valid
+                # 3. ALL pods have the expected version (not just spec)
+                if [[ "$STATE" == "Running" && "$SPEC_STATUS" == "Valid" && "$POD_COUNT" -gt 0 && "$PODS_WITH_EXPECTED" -eq "$POD_COUNT" ]]; then
+                  echo "REC is ready! All $POD_COUNT pods running version $EXPECTED_VERSION."
+                  echo "Proceeding with database deployments..."
                   exit 0
                 fi
 
