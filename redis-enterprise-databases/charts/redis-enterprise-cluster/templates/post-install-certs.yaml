@@ -1,0 +1,66 @@
+{{- if .Values.global.enableCertManager }}
+# Includes a post-install hook and a cron job that have the same command/script
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-cert-script
+data:
+  cert-script.sh: |
+{{ .Values.certificate.script | indent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: 'redis-cert-job'
+  annotations:
+    'helm.sh/hook': post-install,post-upgrade
+    'helm.sh/hook-delete-policy': before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      name: 'redis-cert-job'
+    spec:
+      serviceAccountName: secretmanager-sa
+      restartPolicy: Never
+      containers:
+        - name: post-install-job
+          image: '{{ .Values.global.image.repoUrl }}/{{ .Values.certificate.imageName }}:{{ .Values.certificate.imageTag }}'
+          command: ['/scripts/cert-script.sh']
+          volumeMounts:
+            - name: cert-script
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: cert-script
+          configMap:
+            name: redis-cert-script
+            defaultMode: 0755
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: 'redis-cert-cronjob'
+spec:
+  schedule: '{{ .Values.certificate.cronSchedule }}' # Run every hour
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          name: 'redis-cert-cronjob'
+        spec:
+          serviceAccountName: secretmanager-sa
+          restartPolicy: Never
+          containers:
+            - name: cert-renewal-job
+              image: '{{ .Values.global.image.repoUrl }}/{{ .Values.certificate.imageName }}:{{ .Values.certificate.imageTag }}'
+              command: ['/scripts/cert-script.sh']
+              volumeMounts:
+                - name: cert-script
+                  mountPath: /scripts
+                  readOnly: true
+          volumes:
+            - name: cert-script
+              configMap:
+                name: redis-cert-script
+                defaultMode: 0755
+{{- end }}

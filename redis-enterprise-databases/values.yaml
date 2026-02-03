@@ -1,0 +1,55 @@
+global:
+  rackAwareness: false
+  enableExternalSecrets: true
+  enableCertManager: true
+
+redis-replicated:
+  name: redis-replicated
+  enabled: true
+  memorySize: 8GB
+  databasePort: 13001
+  tlsMode: enabled
+
+redis-nonreplicated:
+  name: redis-nonreplicated
+  enabled: true
+  memorySize: 4GB
+  databasePort: 13002
+  replication: false
+  tlsMode: enabled
+
+redis-persisted:
+  name: redis-persisted
+  enabled: true
+  memorySize: 8GB
+  databasePort: 13003
+  tlsMode: enabled
+  persistence: aofEverySecond
+
+redis-searchable:
+  name: redis-searchable
+  databasePort: 13004
+  enabled: true
+  memorySize: 1GB
+  tlsMode: enabled
+
+redis-enterprise-recovery:
+  enabled: false
+
+# Webhook management configuration
+webhook:
+  cronSchedule: "0 * * * *"  # Run every hour
+  imageName: "kubectl"
+  imageTag: "latest"
+  script: |
+    #!/bin/sh
+    set -e
+    set -o pipefail
+    cd /tmp
+    CERT=`kubectl get secret admission-tls -o jsonpath='{.data.cert}'`
+    echo 'webhooks:' > modified-webhook.yaml
+    echo '- name: redisenterprise.admission.redislabs' >> modified-webhook.yaml
+    echo '  clientConfig:' >> modified-webhook.yaml
+    echo '   caBundle:' $CERT >> modified-webhook.yaml
+    kubectl patch ValidatingWebhookConfiguration redis-enterprise-admission --patch "$(cat modified-webhook.yaml)"
+    rm -f modified-webhook.yaml

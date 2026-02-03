@@ -1,0 +1,37 @@
+{{- if .Values.enabled }}
+apiVersion: app.redislabs.com/v1alpha1
+kind: RedisEnterpriseDatabase
+metadata:
+  name: {{ .Values.name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  databaseSecretName: redis-secret-{{ .Values.name }}
+  memorySize: {{ .Values.memorySize }}
+  databasePort: {{ .Values.databasePort }}
+  shardCount: {{ .Values.shardCount }}
+  replication: {{ .Values.replication }}
+  persistence: {{ .Values.persistence }}
+  tlsMode: {{ .Values.tlsMode }}
+  defaultUser: true
+  {{- if .Values.allMasterShards }}
+  proxyPolicy: all-master-shards
+  {{- end }}
+  {{- $enabledModules := list }}
+  {{- if .Values.modules }}
+    {{- range .Values.modules }}
+      {{- if .enabled }}
+        {{- $enabledModules = append $enabledModules . }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if $enabledModules }}
+  modulesList:
+    {{- range $enabledModules }}
+    - name: {{ .name }}
+    {{- end }}
+  {{- end }}
+  {{- if .Values.global.zoneAwareness }}
+  rackAware: true
+  {{- end }}
+{{- end }}

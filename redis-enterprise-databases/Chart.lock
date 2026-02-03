@@ -1,0 +1,24 @@
+dependencies:
+- name: redis-enterprise-operator
+  repository: file://../redis-enterprise-operator
+  version: 7.22.2-21
+- name: redis-enterprise-cluster
+  repository: file://../redis-enterprise-cluster
+  version: 0.1.22
+- name: redis-enterprise-db-def
+  repository: file://../redis-enterprise-db-def
+  version: 0.1.9
+- name: redis-enterprise-db-def
+  repository: file://../redis-enterprise-db-def
+  version: 0.1.9
+- name: redis-enterprise-db-def
+  repository: file://../redis-enterprise-db-def
+  version: 0.1.9
+- name: redis-enterprise-db-def
+  repository: file://../redis-enterprise-db-def
+  version: 0.1.9
+- name: redis-enterprise-recovery
+  repository: file://../redis-enterprise-recovery/helm
+  version: 0.1.0
+digest: sha256:9f56b7c6412160b03b9d28bbf110be787028954076980b772be91e60b1589bc1
+generated: "2025-12-16T16:47:47.564989315-05:00"

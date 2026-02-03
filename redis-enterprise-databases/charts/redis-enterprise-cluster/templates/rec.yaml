@@ -1,0 +1,52 @@
+apiVersion: app.redislabs.com/v1
+kind: RedisEnterpriseCluster
+metadata:
+  name: {{ .Values.recname }}
+  labels:
+    app: redis-enterprise
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  # Add fields here
+  nodes: {{ .Values.nodes }}
+  {{- if .Values.licenseSecretName }}
+  licenseSecretName: {{ .Values.licenseSecretName }}
+  {{- end }}
+  persistentSpec:
+    enabled: {{ .Values.enablePersistence }} 
+    volumeSize: {{ .Values.volumeSize }}
+  {{- if .Values.proxyCertificateSecretName }}
+  certificates:
+    proxyCertificateSecretName: {{ .Values.proxyCertificateSecretName }}
+  {{- end }}
+  {{- if .Values.global.zoneAwareness }}
+  rackAwarenessNodeLabel: topology.kubernetes.io/zone
+  {{- end }}
+  redisEnterpriseNodeResources:
+  {{- if .Values.limits }}
+    limits:
+      {{- if .Values.limits.cpu }}
+      cpu: {{ .Values.limits.cpu }}
+      {{- end }}
+      {{- if .Values.limits.memory }}
+      memory: {{ .Values.limits.memory }}
+      {{- end }}
+  {{- end }}
+    requests:
+      cpu: {{ .Values.requests.cpu }}
+      memory: {{ .Values.requests.memory }}
+  redisEnterpriseImageSpec:
+    repository: "{{ .Values.redisEnterpriseImageSpec }}"
+    versionTag: "{{ .Values.versionTag }}"
+  redisEnterpriseServicesRiggerImageSpec:
+    repository: "{{ .Values.redisEnterpriseServicesRiggerImageSpec }}"  
+  bootstrapperImageSpec:
+    repository: "{{ .Values.bootstrapperImageSpec }}"
+  {{- if .Values.disallowEviction }}
+  redisEnterprisePodAnnotations:
+    cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+  {{- end }}
+  {{- with .Values.nodeSelector }}
+  nodeSelector:
+    {{- toYaml . | nindent 8 }}
+  {{- end }}

@@ -1,0 +1,5 @@
+apiVersion: v2
+appVersion: 1.21.3
+description: A simple Helm chart for redis operator
+name: redis-enterprise-operator
+version: 7.22.2-21

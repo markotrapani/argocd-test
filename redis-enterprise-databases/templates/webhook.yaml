@@ -1,0 +1,37 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  labels:
+    app: redis-enterprise
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
+  name: redis-enterprise-admission
+webhooks:
+  - admissionReviewVersions:
+      - v1beta1
+    clientConfig:
+      service:
+        name: admission
+        path: /admission
+        namespace: {{ .Release.Namespace }}
+      caBundle: "" # Fill in with BASE64 encoded signed cert
+    failurePolicy: Fail
+    matchPolicy: Exact
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: {{ .Release.Namespace }} 
+    name: redisenterprise.admission.redislabs
+    rules:
+      - apiGroups:
+          - app.redislabs.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - redisenterprisedatabases
+          - redisenterpriseactiveactivedatabases
+          - redisenterpriseremoteclusters
+    sideEffects: None
+    timeoutSeconds: 30

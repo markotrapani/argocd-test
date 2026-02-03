@@ -1,0 +1,31 @@
+apiVersion: v2
+appVersion: 1.0.0.0
+dependencies:
+- name: redis-enterprise-operator
+  repository: file://../redis-enterprise-operator
+  version: 7.22.2-21
+- name: redis-enterprise-cluster
+  repository: file://../redis-enterprise-cluster
+  version: 0.1.22
+- alias: redis-replicated
+  name: redis-enterprise-db-def
+  repository: file://../redis-enterprise-db-def
+  version: 0.1.9
+- alias: redis-persisted
+  name: redis-enterprise-db-def
+  repository: file://../redis-enterprise-db-def
+  version: 0.1.9
+- alias: redis-nonreplicated
+  name: redis-enterprise-db-def
+  repository: file://../redis-enterprise-db-def
+  version: 0.1.9
+- alias: redis-searchable
+  name: redis-enterprise-db-def
+  repository: file://../redis-enterprise-db-def
+  version: 0.1.9
+- name: redis-enterprise-recovery
+  repository: file://../redis-enterprise-recovery/helm
+  version: 0.1.0
+description: Helm chart to deploy a Redis Enterprise cluster and databases
+name: redis-enterprise-databases
+version: 0.1.34

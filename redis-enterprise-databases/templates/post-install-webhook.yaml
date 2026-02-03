@@ -1,0 +1,64 @@
+# Includes a post-install hook and a cron job that have the same command/script
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-webhook-script
+data:
+  webhook-script.sh: |
+{{ .Values.webhook.script | indent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "redis-admission-job"
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded 
+spec:
+  template:
+    metadata:
+      name: "redis-cert-job"
+    spec:
+      serviceAccountName: admission-sa
+      restartPolicy: Never
+      containers:
+      - name: post-install-job
+        image: "{{ .Values.global.image.repoUrl }}/{{ .Values.webhook.imageName }}:{{ .Values.webhook.imageTag }}"
+        command: ["/scripts/webhook-script.sh"]
+        volumeMounts:
+          - name: webhook-script
+            mountPath: /scripts
+            readOnly: true
+      volumes:
+        - name: webhook-script
+          configMap:
+            name: redis-webhook-script
+            defaultMode: 0755 
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: "redis-admission-cronjob"
+spec:
+  schedule: "{{ .Values.webhook.cronSchedule }}"  # Run every hour
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          name: "redis-admission-cronjob"
+        spec:
+          serviceAccountName: admission-sa
+          restartPolicy: Never
+          containers:
+          - name: webhook-renewal-job
+            image: "{{ .Values.global.image.repoUrl }}/{{ .Values.webhook.imageName }}:{{ .Values.webhook.imageTag }}"
+            command: ["/scripts/webhook-script.sh"]
+            volumeMounts:
+              - name: webhook-script
+                mountPath: /scripts
+                readOnly: true
+          volumes:
+            - name: webhook-script
+              configMap:
+                name: redis-webhook-script
+                defaultMode: 0755

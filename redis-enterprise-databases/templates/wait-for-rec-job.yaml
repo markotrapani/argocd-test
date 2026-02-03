@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: wait-for-rec-ready-{{ .Release.Revision }}
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    argocd.argoproj.io/sync-wave: "15"
+spec:
+  backoffLimit: 120
+  activeDeadlineSeconds: 3600
+  template:
+    spec:
+      serviceAccountName: admission-sa
+      restartPolicy: Never
+      containers:
+      - name: wait
+        image: bitnami/kubectl:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          REC_NAME="{{ index .Values "redis-enterprise-cluster" "recname" }}"
+          NAMESPACE="{{ .Release.Namespace }}"
+          
+          echo "Waiting for REC $REC_NAME to be in Running state..."
+          
+          while true; do
+            STATE=$(kubectl get rec $REC_NAME -n $NAMESPACE -o jsonpath='{.status.state}' 2>/dev/null)
+            SPEC_STATUS=$(kubectl get rec $REC_NAME -n $NAMESPACE -o jsonpath='{.status.specStatus}' 2>/dev/null)
+            
+            echo "$(date): REC state: $STATE, specStatus: $SPEC_STATUS"
+            
+            if [ "$STATE" = "Running" ] && [ "$SPEC_STATUS" = "Valid" ]; then
+              echo "REC is ready! Proceeding with REDB deployment..."
+              exit 0
+            fi
+            
+            echo "REC not ready yet, waiting 30 seconds..."
+            sleep 30
+          done

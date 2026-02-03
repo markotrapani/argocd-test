@@ -1,0 +1,18 @@
+name: default
+enabled: false
+memorySize: 1GB
+databasePort: 13000
+shardCount: 1
+replication: true
+persistence: disabled
+tlsMode: enabled
+allMasterShards: true
+modules:
+  - name: search
+    enabled: false
+  - name: ReJSON
+    enabled: false
+  - name: bf
+    enabled: false
+  - name: timeseries
+    enabled: false

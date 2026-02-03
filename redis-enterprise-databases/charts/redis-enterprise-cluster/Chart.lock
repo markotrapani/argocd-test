@@ -1,0 +1,6 @@
+dependencies:
+- name: redis-enterprise-operator
+  repository: oci://acraocpshsrvnonprod.azurecr.io/helm
+  version: 7.22.0-7.2-1
+digest: sha256:191c38fb512a8bbf4551f097b052a814074a6b3262c003d6f2d3474ea15c1b1c
+generated: "2025-09-29T12:30:21.993629267-04:00"

@@ -1,0 +1,55 @@
+clusterName: axp-redis
+env: dev
+recname: axp-redis
+
+nodes: 5
+
+licenseSecretName: redis-enterprise-license
+
+redisEnterpriseImageSpec: redislabs/redis
+redisEnterpriseServicesRiggerImageSpec: redislabs/k8s-controller
+bootstrapperImageSpec: redislabs/operator
+versionTag: 7.22.2-20
+
+# Limits are optional
+# limits:
+#   cpu: "2500m"
+#   memory: "4000Mi"
+
+# Controls whether safe-to-evict: false is set
+disallowEviction: true
+
+rackAwareness: true
+
+requests:
+  cpu: "2100m"
+  memory: "15Gi"
+
+limits:
+  memory: "15Gi"
+
+enablePersistence: true
+volumeSize: "20Gi"
+nodeSelector: 
+  workload-category: core
+
+# Certificate management configuration
+certificate:
+  cronSchedule: "0 * * * *"  # Run every hour
+  imageName: "kubectl"
+  imageTag: "latest"
+  script: |
+    #!/bin/sh
+    set -e
+    set -o pipefail
+    cd /tmp
+    kubectl get secret redis-proxy-cert-gen -o jsonpath="{.data.tls\.crt}" | base64 -d > redis-cert.pem
+    kubectl get secret redis-proxy-cert-gen -o jsonpath="{.data.ca\.crt}" | base64 -d >> redis-cert.pem
+    kubectl get secret redis-proxy-cert-gen -o jsonpath="{.data.tls\.key}" | base64 -d > redis-key.pem
+    # This creates a secret as a yaml and exports it to yaml which is then applied -- effectively, updates 
+    # the secret without deleting it first.
+    kubectl create secret generic redis-proxy-cert --save-config --dry-run=client \
+      --from-file=certificate=redis-cert.pem --from-file=key=redis-key.pem --from-literal=name=proxy \
+      -o yaml | kubectl apply -f -
+    rm -f redis-cert.pem
+    rm -f redis-key.pem

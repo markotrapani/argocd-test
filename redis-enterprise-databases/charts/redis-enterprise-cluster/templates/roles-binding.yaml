@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: secretmanager-rb
+subjects:
+  - kind: ServiceAccount
+    name: secretmanager-sa 
+  - kind: ServiceAccount
+    name: admission-sa 
+roleRef:
+  kind: Role
+  name: secretmanager-role 
+  apiGroup: rbac.authorization.k8s.io

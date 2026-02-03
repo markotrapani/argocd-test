@@ -1,0 +1,44 @@
+enabled: true
+
+image:
+    tag: "1.0"
+    pullPolicy: Always
+
+# The secret created with the cluster username and password also has the same name as the cluster itself.
+clusterName: axp-redis
+
+monitoringSleepInterval: 10
+
+recoverySleepInterval: 1
+
+affinity: |
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: workload-category
+          operator: In
+          values:
+          - core
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - redis-recovery-manager
+        topologyKey: topology.kubernetes.io/zone
+    - weight: 50
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - redis-recovery-manager
+        topologyKey: kubernetes.io/hostname
+nodeSelector: {}
+tolerations: []

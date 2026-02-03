@@ -1,0 +1,14 @@
+{{- if .Values.global.zoneAwareness }}
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: redis-enterprise-operator-ra
+subjects:
+- kind: ServiceAccount
+  namespace: {{ .Release.Namespace }} 
+  name: redis-enterprise-operator
+roleRef:
+  kind: ClusterRole
+  name: redis-enterprise-operator-ra
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}

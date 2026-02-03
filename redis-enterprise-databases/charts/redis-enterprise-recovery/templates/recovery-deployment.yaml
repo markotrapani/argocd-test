@@ -1,0 +1,112 @@
+{{- if .Values.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: redis-recovery-sa
+  annotations:
+    argocd.argoproj.io/sync-wave: "50"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: redis-recovery-role
+  annotations:
+    argocd.argoproj.io/sync-wave: "50"
+rules:
+- apiGroups: ["app.redislabs.com"]
+  resources: ["redisenterpriseclusters", "redisenterprisedatabases"]
+  verbs: ["get", "list", "watch", "patch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["get", "create"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "patch", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: redis-recovery-rb
+  annotations:
+    argocd.argoproj.io/sync-wave: "50"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: redis-recovery-role
+subjects:
+- kind: ServiceAccount
+  name: redis-recovery-sa
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-recovery-manager
+  annotations:
+    argocd.argoproj.io/sync-wave: "50"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-recovery-manager
+  template:
+    metadata:
+      labels:
+        app: redis-recovery-manager
+    spec:
+      serviceAccountName: redis-recovery-sa
+      containers:
+      - name: manager
+        image: "{{ .Values.global.image.repoUrl }}/redis-enterprise/redis-recovery-manager:{{ .Values.image.tag }}"
+        imagePullPolicy: Always
+        command:
+          - python
+          - -m
+          - src.recovery_manager
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        env:
+        - name: REC_NAMESPACE
+          value: {{ .Release.Namespace }}
+        - name: REC_NAME
+          value: {{ .Values.clusterName }}
+        - name: STATE_CONFIGMAP_NAME
+          value: "redis-recovery-state"
+        - name: STATE_CONFIGMAP_KEY
+          value: "state.json"
+        - name: MONITORING_SLEEP_INTERVAL
+          value: "{{ .Values.monitoringSleepInterval }}"
+        - name: RECOVERY_SLEEP_INTERVAL
+          value: "{{ .Values.recoverySleepInterval }}"
+        - name: REC_SERVICE_NAME
+          value: "{{ .Values.clusterName }}.{{ .Release.Namespace }}.svc.cluster.local"
+        - name: REC_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.clusterName }}
+              key: username
+        - name: REC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.clusterName }}
+              key: password
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- tpl . $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

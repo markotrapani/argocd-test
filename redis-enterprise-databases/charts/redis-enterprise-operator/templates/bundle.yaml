@@ -1,0 +1,349 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+    labels:
+        app: redis-enterprise
+    name: redis-enterprise-operator
+rules:
+    - apiGroups:
+        - rbac.authorization.k8s.io
+        - ""
+      resources:
+        - roles
+        - serviceaccounts
+        - rolebindings
+      verbs:
+        - create
+        - get
+        - update
+        - patch
+        - delete
+    - apiGroups:
+        - app.redislabs.com
+      resources:
+        - "*"
+      verbs:
+        - delete
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+    - apiGroups:
+        - ""
+      resources:
+        - secrets
+      verbs:
+        - update
+        - get
+        - create
+        - patch
+        - delete
+        - list
+        - watch
+    - apiGroups:
+        - ""
+      resources:
+        - endpoints
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - ""
+      resources:
+        - events
+      verbs:
+        - create
+        - patch
+    - apiGroups:
+        - apps
+      resources:
+        - deployments
+        - statefulsets
+        - replicasets
+      verbs:
+        - create
+        - delete
+        - get
+        - patch
+        - update
+        - list
+        - watch
+    - apiGroups:
+        - batch
+      resources:
+        - cronjobs
+      verbs:
+        - create
+        - delete
+        - get
+        - patch
+        - update
+        - list
+        - watch
+    - apiGroups:
+        - policy
+      resources:
+        - poddisruptionbudgets
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - watch
+        - update
+    - apiGroups:
+        - ""
+      resources:
+        - configmaps
+      verbs:
+        - create
+        - delete
+        - get
+        - update
+        - watch
+        - list
+    - apiGroups:
+        - ""
+      resources:
+        - persistentvolumeclaims
+      verbs:
+        - create
+        - delete
+        - get
+        - update
+        - list
+        - watch
+    - apiGroups:
+        - ""
+      resources:
+        - pods
+      verbs:
+        - get
+        - list
+        - update
+        - patch
+        - delete
+        - watch
+    - apiGroups:
+        - ""
+      resources:
+        - services
+      verbs:
+        - get
+        - list
+        - update
+        - patch
+        - create
+        - delete
+        - watch
+    - apiGroups:
+        - networking.k8s.io
+      resources:
+        - ingresses
+      verbs:
+        - create
+        - patch
+        - delete
+        - list
+        - update
+        - get
+        - watch
+    - apiGroups:
+        - networking.istio.io
+      resources:
+        - gateways
+        - virtualservices
+      verbs:
+        - get
+        - list
+        - update
+        - patch
+        - create
+        - delete
+        - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app: redis-enterprise
+  name: redis-enterprise-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: redis-enterprise-operator
+subjects:
+  - kind: ServiceAccount
+    name: redis-enterprise-operator
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: redis-enterprise
+  name: redis-enterprise-operator
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admission
+  labels:
+    app: redis-enterprise
+spec:
+  ports:
+    - port: 443
+      protocol: TCP
+      targetPort: 8443
+  selector:
+    name: redis-enterprise-operator
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: redis-enterprise
+  name: redis-enterprise-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: redis-enterprise-operator
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: redis-enterprise
+        name: redis-enterprise-operator
+    spec:
+      containers:
+        - command:
+            - operator-root
+            - operator
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: redis-enterprise-operator
+          envFrom:
+            - configMapRef:
+                name: "operator-environment-config"
+                optional: true
+          image: {{ .Values.operatorImageSpec}}:{{.Values.versionTag }}
+          imagePullPolicy: Always
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: 8080
+              scheme: HTTP
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          name: redis-enterprise-operator
+          ports:
+            - containerPort: 8080
+          resources:
+            limits:
+              cpu: 4000m
+              memory: 512Mi
+            requests:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+        - command:
+            - operator-root
+            - admission
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          envFrom:
+            - configMapRef:
+                name: "operator-environment-config"
+                optional: true
+          image: {{ .Values.operatorImageSpec}}:{{.Values.versionTag }} 
+          imagePullPolicy: Always
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /liveness
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          name: admission
+          ports:
+            - containerPort: 8443
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /healthz
+              port: 8443
+              scheme: HTTPS
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        runAsNonRoot: true
+      serviceAccountName: redis-enterprise-operator
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- tpl . $ | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---

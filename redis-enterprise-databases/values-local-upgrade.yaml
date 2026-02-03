@@ -1,0 +1,50 @@
+# Values for LOCAL TESTING - Upgrade to newer version
+# Disables cert-manager and external-secrets dependencies
+
+global:
+  enableExternalSecrets: false
+  enableCertManager: false
+  zoneAwareness: false
+  image:
+    repoUrl: bitnami
+
+redis-enterprise-cluster:
+  recname: test-redis
+  nodes: 3
+  licenseSecretName: ""
+  versionTag: "7.4.6-52"  # UPGRADED VERSION
+  redisEnterpriseImageSpec: redislabs/redis
+  redisEnterpriseServicesRiggerImageSpec: redislabs/k8s-controller
+  bootstrapperImageSpec: redislabs/operator
+  enablePersistence: false
+  volumeSize: "10Gi"
+  disallowEviction: false
+  requests:
+    cpu: "500m"
+    memory: "4Gi"
+  limits:
+    memory: "4Gi"
+  nodeSelector: {}
+
+# Enable database - this is what triggers the sync issue during upgrade
+redis-replicated:
+  enabled: true
+  name: redis-replicated
+  memorySize: 100MB
+  databasePort: 13001
+  shardCount: 1
+  replication: true
+  persistence: disabled
+  tlsMode: disabled
+
+redis-nonreplicated:
+  enabled: false
+
+redis-persisted:
+  enabled: false
+
+redis-searchable:
+  enabled: false
+
+redis-enterprise-recovery:
+  enabled: false
