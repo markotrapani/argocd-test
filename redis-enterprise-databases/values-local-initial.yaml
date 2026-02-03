@@ -1,6 +1,5 @@
-# Values for LOCAL TESTING - Initial deployment at older version
+# Values for LOCAL TESTING - Initial deployment
 # Disables cert-manager and external-secrets dependencies
-
 global:
   enableExternalSecrets: false
   enableCertManager: false
@@ -8,11 +7,15 @@ global:
   image:
     repoUrl: bitnami
 
+redis-enterprise-operator:
+  versionTag: "7.22.2-22"
+  affinity: ""  # Disable node affinity for local testing
+
 redis-enterprise-cluster:
   recname: test-redis
   nodes: 3
   licenseSecretName: ""
-  versionTag: "7.4.2-54"
+  versionTag: "7.22.2-20"
   redisEnterpriseImageSpec: redislabs/redis
   redisEnterpriseServicesRiggerImageSpec: redislabs/k8s-controller
   bootstrapperImageSpec: redislabs/operator
@@ -26,7 +29,6 @@ redis-enterprise-cluster:
     memory: "4Gi"
   nodeSelector: {}
 
-# Disable all databases for initial deploy to keep it simple
 redis-replicated:
   enabled: true
   name: redis-replicated
@@ -39,12 +41,9 @@ redis-replicated:
 
 redis-nonreplicated:
   enabled: false
-
 redis-persisted:
   enabled: false
-
 redis-searchable:
   enabled: false
-
 redis-enterprise-recovery:
   enabled: false

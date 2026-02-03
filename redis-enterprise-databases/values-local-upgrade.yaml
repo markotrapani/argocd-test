@@ -1,6 +1,5 @@
-# Values for LOCAL TESTING - Upgrade to newer version
-# Disables cert-manager and external-secrets dependencies
-
+# Values for LOCAL TESTING - Upgrade deployment
+# Same operator/REC versions, but REDB changes to trigger the upgrade scenario
 global:
   enableExternalSecrets: false
   enableCertManager: false
@@ -8,11 +7,15 @@ global:
   image:
     repoUrl: bitnami
 
+redis-enterprise-operator:
+  versionTag: "7.22.2-22"
+  affinity: ""
+
 redis-enterprise-cluster:
   recname: test-redis
   nodes: 3
   licenseSecretName: ""
-  versionTag: "7.4.6-52"  # UPGRADED VERSION
+  versionTag: "7.22.2-20"
   redisEnterpriseImageSpec: redislabs/redis
   redisEnterpriseServicesRiggerImageSpec: redislabs/k8s-controller
   bootstrapperImageSpec: redislabs/operator
@@ -26,11 +29,10 @@ redis-enterprise-cluster:
     memory: "4Gi"
   nodeSelector: {}
 
-# Enable database - this is what triggers the sync issue during upgrade
 redis-replicated:
   enabled: true
   name: redis-replicated
-  memorySize: 100MB
+  memorySize: 200MB  # CHANGED - triggers REDB update
   databasePort: 13001
   shardCount: 1
   replication: true
@@ -39,12 +41,9 @@ redis-replicated:
 
 redis-nonreplicated:
   enabled: false
-
 redis-persisted:
   enabled: false
-
 redis-searchable:
   enabled: false
-
 redis-enterprise-recovery:
   enabled: false
