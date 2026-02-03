@@ -40,7 +40,7 @@ kind: CronJob
 metadata:
   name: "redis-admission-cronjob"
   annotations:
-    argocd.argoproj.io/sync-wave: "25"
+    argocd.argoproj.io/sync-wave: "35"
 spec:
   schedule: "{{ .Values.webhook.cronSchedule }}"  # Run every hour
   jobTemplate:
