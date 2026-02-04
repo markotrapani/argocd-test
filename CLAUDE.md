@@ -312,11 +312,18 @@ REC with 3 nodes takes 5-15 minutes to bootstrap on Kind. This is normal. States
 
 ## Clean Slate Commands
 
+> **⚠️ STOP! READ THIS FIRST:**
+>
+> **FINALIZERS WILL BLOCK DELETION.** You MUST remove finalizers BEFORE attempting to delete any resource.
+> For CRDs specifically, use: `kubectl get crd <name> -o json | jq 'del(.metadata.finalizers)' | kubectl replace -f -`
+>
+> If you skip this step, resources will appear to delete but remain stuck with a `deletionTimestamp`.
+
 **CRITICAL LESSONS LEARNED:**
 
 1. **STOP ArgoCD FIRST** - ArgoCD will recreate resources while you're deleting them
-2. **Check deletionTimestamp** - A resource can EXIST but be STUCK in deletion. Always verify no deletionTimestamp!
-3. **Finalizers block deletion** - Always remove finalizers BEFORE deleting
+2. **REMOVE FINALIZERS BEFORE DELETING** - This is the #1 cause of stuck resources. Use `jq 'del(.metadata.finalizers)'` for CRDs
+3. **Check deletionTimestamp** - A resource can EXIST but be STUCK in deletion. Always verify no deletionTimestamp!
 4. **Order matters** - Delete in this order: ArgoCD app → CRs → CRDs → Cluster resources → Namespace
 5. **Delete secrets and jobs too** - The `redis-secret-*` secrets and `wait-for-rec-ready-*` jobs persist and cause errors on redeploy
 6. **Jobs are immutable** - You cannot update a Job spec, must delete and recreate
@@ -352,27 +359,40 @@ sleep 2
 kubectl get namespace infra -o json 2>/dev/null | jq '.spec.finalizers = []' | kubectl replace --raw "/api/v1/namespaces/infra/finalize" -f - 2>/dev/null
 wait
 
-# === STEP 7: PROPER VERIFICATION (check deletionTimestamp!) ===
-echo "=== VERIFICATION ==="
+# === STEP 7: EXHAUSTIVE VERIFICATION ===
+# CRITICAL: Check EVERYTHING - not just high-level resources!
+echo "=== EXHAUSTIVE VERIFICATION ==="
 
-# Check namespace - must not exist OR have deletionTimestamp
-NS_CHECK=$(kubectl get namespace infra -o jsonpath='{.metadata.deletionTimestamp}' 2>/dev/null)
-if [ -z "$NS_CHECK" ]; then
-  kubectl get namespace infra 2>/dev/null && echo "⚠️  WARNING: infra EXISTS" || echo "✓ infra: GONE"
-else
-  echo "⚠️  WARNING: infra STUCK IN DELETION (deletionTimestamp: $NS_CHECK)"
-fi
+echo "1. Namespace:"
+kubectl get namespace infra 2>/dev/null && echo "⚠️ EXISTS - DELETE IT" || echo "✓ GONE"
 
-# Check CRDs
-kubectl get crd | grep redislabs 2>/dev/null && echo "⚠️  WARNING: CRDs still exist" || echo "✓ CRDs: GONE"
+echo "2. CRDs:"
+kubectl get crd | grep -i redis 2>/dev/null && echo "⚠️ EXISTS" || echo "✓ GONE"
 
-# Check ArgoCD app
-kubectl get application -n argocd 2>/dev/null | grep redis && echo "⚠️  WARNING: ArgoCD app exists" || echo "✓ ArgoCD app: GONE"
+echo "3. ArgoCD app:"
+kubectl get application -n argocd | grep redis 2>/dev/null && echo "⚠️ EXISTS" || echo "✓ GONE"
 
-# Check for ANY Redis resources with deletionTimestamp (stuck in deletion)
+echo "4. Webhook:"
+kubectl get validatingwebhookconfiguration | grep redis 2>/dev/null && echo "⚠️ EXISTS" || echo "✓ GONE"
+
+echo "5. ClusterRoles (ignore system: ones):"
+kubectl get clusterrole | grep -E "admission-role|wait-for-rec" 2>/dev/null && echo "⚠️ EXISTS" || echo "✓ GONE"
+
+echo "6. ClusterRoleBindings (ignore system: ones):"
+kubectl get clusterrolebinding | grep -E "admission-crb|wait-for-rec" 2>/dev/null && echo "⚠️ EXISTS" || echo "✓ GONE"
+
+# CRITICAL: These are often missed!
+echo "7. ANY pods in infra namespace:"
+kubectl get pods -n infra 2>/dev/null | grep -v "^$" && echo "⚠️ PODS EXIST - force delete them!" || echo "✓ GONE"
+
+echo "8. ANY jobs in infra namespace:"
+kubectl get jobs -n infra 2>/dev/null | grep -v "^$" && echo "⚠️ JOBS EXIST" || echo "✓ GONE"
+
+echo "9. Redis pods across ALL namespaces (should only see argocd-redis):"
+kubectl get pods -A | grep -i redis | grep -v argocd-redis && echo "⚠️ REDIS PODS EXIST ELSEWHERE" || echo "✓ Only argocd-redis (expected)"
+
 echo ""
-echo "Checking for stuck resources..."
-kubectl get rec -A -o custom-columns="NS:.metadata.namespace,NAME:.metadata.name,DELETING:.metadata.deletionTimestamp" 2>/dev/null | grep -v "<none>" && echo "⚠️  WARNING: REC stuck in deletion!" || echo "✓ No stuck RECs"
+echo "If ANY checks failed, fix them before proceeding!"
 ```
 
 ## Success Criteria
