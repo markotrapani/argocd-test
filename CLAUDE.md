@@ -42,6 +42,7 @@ data:
 - Wave 15: Wait-for-REC-ready Job (blocks until REC is Running/Valid)
 - Wave 20: REDB deployment
 - Wave 30: ValidatingWebhookConfiguration
+- Wave 35: Admission CronJob (patches webhook with CA cert)
 
 ### 3. Async Sync Pattern
 ArgoCD sync operations timeout after ~5 minutes. REC bootstrap can take 10-15 minutes. Use:
@@ -88,7 +89,7 @@ metadata:
   annotations:
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/sync-wave: "15"
-    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
 spec:
   backoffLimit: 1
   activeDeadlineSeconds: 1800
